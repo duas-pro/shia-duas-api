@@ -82,13 +82,13 @@ async function getDua(supabaseClient: SupabaseClient, routeName: string, languag
         });
     });
 
-    // Sort lines by line_number
     const sortedLines = Object.keys(lines)
-        .sort((a, b) => parseInt(a) - parseInt(b))
+        .map(key => parseInt(key)) // Convert keys to numbers
+        .sort((a, b) => a - b) // Sort numerically
         .reduce((acc, key) => {
             acc[key] = lines[key];
             return acc;
-        }, {});
+        }, {} as { [key: number]: { [key: string]: string } });
 
     const formattedDua = {
         route_name: dua.route_name,
@@ -103,7 +103,7 @@ async function getDua(supabaseClient: SupabaseClient, routeName: string, languag
 }
 
 
-Deno.serve(async (req) => {
+Deno.serve(req => {
     const {url, method} = req
 
     // This is needed if you're planning to invoke your function from a browser.
