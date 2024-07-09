@@ -9,6 +9,7 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey',
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
 }
+
 async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) {
     console.log('Requested language codes:', languageCodes);
 
@@ -78,7 +79,9 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
     });
-}async function getDua(supabaseClient: SupabaseClient, routeName: string, languageCodes: string[]) {
+}
+
+async function getDua(supabaseClient: SupabaseClient, routeName: string, languageCodes: string[]) {
     console.log('Requested route name:', routeName);
     console.log('Requested language codes:', languageCodes);
 
