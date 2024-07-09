@@ -1,12 +1,12 @@
 # Shia Duas API (currently still adding duas)
-A comprehensive collection of 80+ Shia Islamic supplications (duas) and pilgrimage prayers (ziyarat) available in 8 different languages. This API serves as the backend for the duas.pro ([website](https://duas.pro), [repo](https://github.com/Anquuni/duas-pro-frontend)), but is openly accessible for anyone to use in their own projects. It provides easy access to a diverse range of spiritual content for developers building Islamic apps or websites. With its multi-language support, this API enables users to access these important religious texts in their preferred language, making it a valuable resource for the Shia community and researchers worldwide.
+A comprehensive collection of 80+ Shia Islamic supplications (duas) and pilgrimage prayers (ziyarat) available in 8 different languages. This API serves as the backend for the duas.pro ([website](https://duas.pro), [repo](https://github.com/duas-pro/duas-pro-frontend)), but is openly accessible for anyone to use in their own projects. It provides easy access to a diverse range of spiritual content for developers building Islamic apps or websites. With its multi-language support, this API enables users to access these important religious texts in their preferred language, making it a valuable resource for the Shia community and researchers worldwide.
 
 ## Features
 - 80+ Shia Islamic supplications (duas) and pilgrimage prayers (ziyarat)
 - Available in 8 different languages
 - Audio versions of duas available
 - Line-by-line translations with timestamps
-- Serves as backend for duas.pro ([website](https://duas.pro), [repo](https://github.com/Anquuni/duas-pro-frontend))
+- Serves as backend for duas.pro ([website](https://duas.pro), [repo](https://github.com/duas-pro/duas-pro-frontend))
 - Open access for anyone to use in their projects
 
 ## Technology
