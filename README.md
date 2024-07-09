@@ -13,7 +13,7 @@ A comprehensive collection of 80+ Shia Islamic supplications (duas) and pilgrima
 This API is developed as a Supabase Function using JavaScript, providing a scalable and efficient backend solution.
 
 ## Test and view API
-You can access the API and find its complete documentation [here](https://www.postman.com/cashregister/workspace/shia-duas-api).
+You can access the API and find its complete documentation [here](https://www.postman.com/duas-pro/workspace/shia-duas-api).
 
 ## Local Development
 You can find a guide for local development [here](https://supabase.com/docs/guides/cli/local-development) and specific for Supabase Functions [here](https://supabase.com/docs/guides/functions/quickstart). If you successfully setted your local development environment up, you can access the local Supabase dashboard [here](http://localhost:54323/project/default). For your convenience:
