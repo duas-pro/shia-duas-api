@@ -10,8 +10,7 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
 }
 
-async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) {
-    // Überprüfe, ob mindestens eine Sprache angegeben wurde
+function hasAtLeastOneLanguageCode(languageCodes: string[]): Response | null {
     if (languageCodes.length === 0) {
         return new Response(JSON.stringify({
             error: 'At least one language code must be provided'
@@ -20,22 +19,21 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
             status: 400, // Bad Request
         });
     }
+    return null;
+}
 
-    // Zuerst alle Sprachen abrufen
-    const { data: languages, error: languageError } = await supabaseClient
-        .from('languages')
-        .select('*');
-
-    if (languageError) {
-        console.error('Error fetching languages:', languageError);
-        throw languageError;
+async function getLanguageMappings(supabaseClient: SupabaseClient) {
+    const { data: languages, error } = await supabaseClient.from('languages').select('*');
+    if (error) {
+        console.error('Error fetching languages:', error);
+        throw error;
     }
-
-    // Erstelle Mappings für Sprachen
     const languageMap = Object.fromEntries(languages.map(lang => [lang.id, lang]));
     const codeToIdMap = Object.fromEntries(languages.map(lang => [lang.code, lang.id]));
+    return { languageMap, codeToIdMap };
+}
 
-    // Überprüfe, ob alle angeforderten Sprachcodes existieren
+function hasValidLanguageCodes(languageCodes: string[], codeToIdMap: Record<string, number>): Response | null {
     const invalidCodes = languageCodes.filter(code => !codeToIdMap[code]);
     if (invalidCodes.length > 0) {
         return new Response(JSON.stringify({
@@ -45,9 +43,70 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
             status: 400, // Bad Request
         });
     }
+    return null;
+}
 
-    // Konvertiere languageCodes zu IDs
-    const languageIds = languageCodes.map(code => codeToIdMap[code]);
+function extractTags(duaHasTags: { tags: { name: string } }[]) {
+    return duaHasTags
+        .map(relation => relation.tags.name)
+        .filter((tag): tag is string => tag !== null);
+}
+
+function formatDuaContents(duaContents: any[], languageMap: Record<number, { code: string }>) {
+    const titles: { [key: string]: string } = {};
+    const descriptions: { [key: string]: string } = {};
+    const lines: { [key: number]: { 
+        [key: string]: { 
+            text: string, 
+            repetitions_number: number | null, 
+            end_of_section: boolean 
+        } 
+    } } = {};
+
+    duaContents.forEach(content => {
+        const languageCode = languageMap[content.language_id].code;
+        titles[languageCode] = content.title;
+        descriptions[languageCode] = content.description;
+        
+        content.dua_content_lines?.forEach(line => {
+            if (!lines[line.line_number]) {
+                lines[line.line_number] = {};
+            }
+            lines[line.line_number][languageCode] = {
+                text: line.text,
+                repetitions_number: line.repetitions_number,
+                end_of_section: line.end_of_section
+            };
+        });
+    });
+
+    const sortedLines = Object.keys(lines)
+        .map(key => parseInt(key))
+        .sort((a, b) => a - b)
+        .reduce((acc, key) => {
+            acc[key] = lines[key];
+            return acc;
+        }, {} as typeof lines);
+
+    return { titles, descriptions, lines: sortedLines };
+}
+
+function convertLanguageCodesToIds(languageCodes: string[], codeToIdMap: Record<string, number>) {
+    return languageCodes.map(code => codeToIdMap[code] || code);
+}
+
+async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) {
+    const hasAtLeastOneLanguageCodeError = hasAtLeastOneLanguageCode(languageCodes);
+    if (hasAtLeastOneLanguageCodeError) {
+        return hasAtLeastOneLanguageCodeError;
+    }
+
+    const { languageMap, codeToIdMap } = await getLanguageMappings(supabaseClient);
+    const hasValidLanguageCodeError = hasValidLanguageCodes(languageCodes, codeToIdMap);
+    if (hasValidLanguageCodeError) {
+        return hasValidLanguageCodeError;
+    }
+    const languageIds = convertLanguageCodesToIds(languageCodes, codeToIdMap);
 
     // Basisquery definieren
     let query = supabaseClient
@@ -79,29 +138,16 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
 
     // Daten formatieren
     const formattedDuas = duas.map(dua => {
-        const languages = new Set<string>();
-        const title: {[key: string]: string} = {};
-        const description: {[key: string]: string} = {};
-
-        dua.dua_contents.forEach(content => {
-            if (content.language_id && languageMap[content.language_id]) {
-                const langCode = languageMap[content.language_id].code;
-                languages.add(langCode);
-                title[langCode] = content.title;
-                description[langCode] = content.description;
-            }
-        });
-
-        const tags = dua.dua_has_tags
-            .map(relation => relation.tags.name)
-            .filter((tag): tag is string => tag !== null);
+        const { titles, descriptions } = formatDuaContents(dua.dua_contents, languageMap);
+        const tags = extractTags(dua.dua_has_tags);
+        const languages = Object.keys(titles);
 
         return {
             route_name: dua.route_name,
             image_url: dua.image_url,
-            languages: Array.from(languages),
-            title,
-            description,
+            languages,
+            title: titles,
+            description: descriptions,
             tags
         };
     }).filter(dua => dua.languages.length > 0);
@@ -114,31 +160,24 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
 }
 
 async function getDua(supabaseClient: SupabaseClient, routeName: string, languageCodes: string[]) {
-    console.log('Requested route name:', routeName);
-    console.log('Requested language codes:', languageCodes);
-
-    // Zuerst alle Sprachen abrufen
-    const { data: languages, error: languageError } = await supabaseClient
-        .from('languages')
-        .select('*');
-
-    if (languageError) {
-        console.error('Error fetching languages:', languageError);
-        throw languageError;
+    const languageCodesValidationError = hasAtLeastOneLanguageCode(languageCodes);
+    if (languageCodesValidationError) {
+        return languageCodesValidationError;
     }
-
-    // Erstelle Mappings für Sprachen
-    const languageMap = Object.fromEntries(languages.map(lang => [lang.id, lang]));
-    const codeToIdMap = Object.fromEntries(languages.map(lang => [lang.code, lang.id]));
-
-    // Konvertiere languageCodes zu IDs, falls nötig
-    const languageIds = languageCodes.map(code => codeToIdMap[code] || code);
+    
+    const { languageMap, codeToIdMap } = await getLanguageMappings(supabaseClient);
+    const hasValidLanguageCodeError = hasValidLanguageCodes(languageCodes, codeToIdMap);
+    if (hasValidLanguageCodeError) {
+        return hasValidLanguageCodeError;
+    }
+    const languageIds = convertLanguageCodesToIds(languageCodes, codeToIdMap);
 
     let query = supabaseClient
         .from('duas')
         .select(`
             id,
             route_name,
+            image_url,
             dua_contents (
                 id,
                 title,
@@ -150,6 +189,11 @@ async function getDua(supabaseClient: SupabaseClient, routeName: string, languag
                     text,
                     repetitions_number,
                     end_of_section
+                )
+            ),
+            dua_has_tags (
+                tags (
+                    name
                 )
             )
         `)
@@ -170,53 +214,16 @@ async function getDua(supabaseClient: SupabaseClient, routeName: string, languag
     }
 
     const dua = duas[0];
-
-    const titles: { [key: string]: string } = {};
-    const descriptions: { [key: string]: string } = {};
-    const lines: { [key: number]: { 
-        [key: string]: { 
-            text: string, 
-            repetitions_number: number | null, 
-            end_of_section: boolean 
-        } 
-    } } = {};
-
-    dua.dua_contents.forEach(content => {
-        const languageCode = languageMap[content.language_id].code;
-
-        // Set title for the language
-        titles[languageCode] = content.title;
-
-        // Set description for the language
-        descriptions[languageCode] = content.description;
-
-        // Set lines for the language
-        content.dua_content_lines.forEach(line => {
-            if (!lines[line.line_number]) {
-                lines[line.line_number] = {};
-            }
-
-            lines[line.line_number][languageCode] = {
-                text: line.text,
-                repetitions_number: line.repetitions_number,
-                end_of_section: line.end_of_section
-            };
-        });
-    });
-
-    const sortedLines = Object.keys(lines)
-        .map(key => parseInt(key))
-        .sort((a, b) => a - b)
-        .reduce((acc, key) => {
-            acc[key] = lines[key];
-            return acc;
-        }, {} as typeof lines);
+    const { titles, descriptions, lines } = formatDuaContents(dua.dua_contents, languageMap);
+    const tags = extractTags(dua.dua_has_tags);
 
     const formattedDua = {
         route_name: dua.route_name,
-        titles: titles,
-        descriptions: descriptions,
-        lines: sortedLines
+        image_url: dua.image_url,
+        titles,
+        descriptions,
+        lines,
+        tags
     };
 
     return new Response(JSON.stringify(formattedDua), {
