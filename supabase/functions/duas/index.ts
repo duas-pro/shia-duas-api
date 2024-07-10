@@ -11,7 +11,15 @@ const corsHeaders = {
 }
 
 async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) {
-    console.log('Requested language codes:', languageCodes);
+    // Überprüfe, ob mindestens eine Sprache angegeben wurde
+    if (languageCodes.length === 0) {
+        return new Response(JSON.stringify({
+            error: 'At least one language code must be provided'
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400, // Bad Request
+        });
+    }
 
     // Zuerst alle Sprachen abrufen
     const { data: languages, error: languageError } = await supabaseClient
@@ -27,27 +35,40 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
     const languageMap = Object.fromEntries(languages.map(lang => [lang.id, lang]));
     const codeToIdMap = Object.fromEntries(languages.map(lang => [lang.code, lang.id]));
 
-    // Konvertiere languageCodes zu IDs, falls nötig
-    const languageIds = languageCodes.map(code => codeToIdMap[code] || code);
+    // Überprüfe, ob alle angeforderten Sprachcodes existieren
+    const invalidCodes = languageCodes.filter(code => !codeToIdMap[code]);
+    if (invalidCodes.length > 0) {
+        return new Response(JSON.stringify({
+            error: `Invalid language code(s): ${invalidCodes.join(', ')}`
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400, // Bad Request
+        });
+    }
+
+    // Konvertiere languageCodes zu IDs
+    const languageIds = languageCodes.map(code => codeToIdMap[code]);
 
     // Basisquery definieren
     let query = supabaseClient
         .from('duas')
         .select(`
-            id,
             route_name,
+            image_url,
             dua_contents (
-                id,
                 title,
                 description,
                 language_id
+            ),
+            dua_has_tags (
+                tags (
+                    name
+                )
             )
         `);
 
-    // Sprachfilter anwenden, falls Sprachen angegeben wurden
-    if (languageIds.length > 0) {
-        query = query.filter('dua_contents.language_id', 'in', `(${languageIds.join(',')})`);
-    }
+    // Sprachfilter anwenden
+    query = query.filter('dua_contents.language_id', 'in', `(${languageIds.join(',')})`);
 
     // Daten abrufen
     const { data: duas, error } = await query;
@@ -56,23 +77,34 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
         throw error;
     }
 
-    console.log('Raw duas data:', JSON.stringify(duas, null, 2));
-
     // Daten formatieren
-    const formattedDuas = duas.map(dua => ({
-        id: dua.id,
-        route_name: dua.route_name,
-        contents: dua.dua_contents
-            .filter(content => content.language_id && languageMap[content.language_id])
-            .map(content => ({
-                id: content.id,
-                title: content.title,
-                description: content.description,
-                languages: languageMap[content.language_id]
-            }))
-    })).filter(dua => dua.contents.length > 0);
+    const formattedDuas = duas.map(dua => {
+        const languages = new Set<string>();
+        const title: {[key: string]: string} = {};
+        const description: {[key: string]: string} = {};
 
-    console.log('Formatted duas:', JSON.stringify(formattedDuas, null, 2));
+        dua.dua_contents.forEach(content => {
+            if (content.language_id && languageMap[content.language_id]) {
+                const langCode = languageMap[content.language_id].code;
+                languages.add(langCode);
+                title[langCode] = content.title;
+                description[langCode] = content.description;
+            }
+        });
+
+        const tags = dua.dua_has_tags
+            .map(relation => relation.tags.name)
+            .filter((tag): tag is string => tag !== null);
+
+        return {
+            route_name: dua.route_name,
+            image_url: dua.image_url,
+            languages: Array.from(languages),
+            title,
+            description,
+            tags
+        };
+    }).filter(dua => dua.languages.length > 0);
 
     // Antwort zurückgeben
     return new Response(JSON.stringify(formattedDuas), {
@@ -235,7 +267,7 @@ Deno.serve(req => {
   0. If you changed something in the database structure, run `supabase db reset`
 
   1. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-  2. Run `supabase functions serve`
+  2. Run `supabase functions serve --no-verify-jwt`
   3. Make an HTTP request:
 
   curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/hello-world' \
