@@ -53,42 +53,34 @@ function extractTags(duaHasTags: { tags: { name: string } }[]) {
 }
 
 function formatDuaContents(duaContents: any[], languageMap: Record<number, { code: string }>) {
-    const titles: { [key: string]: string } = {};
-    const descriptions: { [key: string]: string } = {};
-    const lines: { [key: number]: { 
-        [key: string]: { 
-            text: string, 
-            repetitions_number: number | null, 
-            end_of_section: boolean 
-        } 
-    } } = {};
+    const title: { [key: string]: string } = {};
+    const description: { [key: string]: string } = {};
+    const lines: Array<{
+        [key: string]: string,
+        repetitions_number: number | null,
+        end_of_section: boolean
+    }> = [];
 
     duaContents.forEach(content => {
         const languageCode = languageMap[content.language_id].code;
-        titles[languageCode] = content.title;
-        descriptions[languageCode] = content.description;
+        title[languageCode] = content.title;
+        description[languageCode] = content.description;
         
         content.dua_content_lines?.forEach(line => {
-            if (!lines[line.line_number]) {
-                lines[line.line_number] = {};
+            if (!lines[line.line_number - 1]) {
+                lines[line.line_number - 1] = {
+                    repetitions_number: line.repetitions_number,
+                    end_of_section: line.end_of_section
+                };
             }
-            lines[line.line_number][languageCode] = {
-                text: line.text,
-                repetitions_number: line.repetitions_number,
-                end_of_section: line.end_of_section
-            };
+            lines[line.line_number - 1][languageCode] = line.text;
         });
     });
 
-    const sortedLines = Object.keys(lines)
-        .map(key => parseInt(key))
-        .sort((a, b) => a - b)
-        .reduce((acc, key) => {
-            acc[key] = lines[key];
-            return acc;
-        }, {} as typeof lines);
-
-    return { titles, descriptions, lines: sortedLines };
+    // Entferne leere Einträge und komprimiere das Array
+    const compactLines = lines.filter(line => Object.keys(line).length > 2); // > 2 weil repetitions_number und end_of_section immer da sind
+        
+    return { title, description, lines: compactLines };
 }
 
 function convertLanguageCodesToIds(languageCodes: string[], codeToIdMap: Record<string, number>) {
@@ -138,16 +130,16 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
 
     // Daten formatieren
     const formattedDuas = duas.map(dua => {
-        const { titles, descriptions } = formatDuaContents(dua.dua_contents, languageMap);
+        const { title, description } = formatDuaContents(dua.dua_contents, languageMap);
         const tags = extractTags(dua.dua_has_tags);
-        const languages = Object.keys(titles);
+        const languages = Object.keys(title);
 
         return {
             route_name: dua.route_name,
             image_url: dua.image_url,
             languages,
-            title: titles,
-            description: descriptions,
+            title: title,
+            description: description,
             tags
         };
     }).filter(dua => dua.languages.length > 0);
@@ -214,14 +206,14 @@ async function getDua(supabaseClient: SupabaseClient, routeName: string, languag
     }
 
     const dua = duas[0];
-    const { titles, descriptions, lines } = formatDuaContents(dua.dua_contents, languageMap);
+    const { title, description, lines } = formatDuaContents(dua.dua_contents, languageMap);
     const tags = extractTags(dua.dua_has_tags);
 
     const formattedDua = {
         route_name: dua.route_name,
         image_url: dua.image_url,
-        titles,
-        descriptions,
+        title,
+        description,
         lines,
         tags
     };
