@@ -10,6 +10,62 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
 }
 
+interface Language {
+    id: number;
+    code: string;
+}
+
+interface DuaContentLine {
+    id?: number;
+    line_number: number;
+    text: string;
+    repetitions_number: number | null;
+    end_of_section: boolean;
+}
+
+interface DuaContent {
+    id?: number;
+    title: string;
+    description: string;
+    narrated_by: string;
+    language_id: number;
+    dua_content_lines?: DuaContentLine[];
+}
+
+interface Tag {
+    name: string;
+}
+
+interface DuaHasTag {
+    tags: Tag;
+}
+
+interface Dua {
+    id?: number;
+    route_name: string;
+    image_url: string;
+    dua_contents: DuaContent[];
+    dua_has_tags: DuaHasTag[];
+}
+
+interface FormattedDua {
+    route_name: string;
+    image_url: string;
+    languages: string[];
+    title: { [key: string]: string };
+    description: { [key: string]: string };
+    narratedBy: { [key: string]: string };
+    tags: string[];
+}
+
+interface FormattedDuaWithLines extends FormattedDua {
+    lines: Array<{
+        [key: string]: string | number | null | boolean;
+        repetitions_number: number | null;
+        end_of_section: boolean;
+    }>;
+}
+
 function hasAtLeastOneLanguageCode(languageCodes: string[]): Response | null {
     if (languageCodes.length === 0) {
         return new Response(JSON.stringify({
@@ -22,14 +78,14 @@ function hasAtLeastOneLanguageCode(languageCodes: string[]): Response | null {
     return null;
 }
 
-async function getLanguageMappings(supabaseClient: SupabaseClient) {
+async function getLanguageMappings(supabaseClient: SupabaseClient): Promise<{ languageMap: Record<number, Language>, codeToIdMap: Record<string, number> }> {
     const { data: languages, error } = await supabaseClient.from('languages').select('*');
     if (error) {
         console.error('Error fetching languages:', error);
         throw error;
     }
-    const languageMap = Object.fromEntries(languages.map(lang => [lang.id, lang]));
-    const codeToIdMap = Object.fromEntries(languages.map(lang => [lang.code, lang.id]));
+    const languageMap: Record<number, Language> = Object.fromEntries(languages.map(lang => [lang.id, lang]));
+    const codeToIdMap: Record<string, number> = Object.fromEntries(languages.map(lang => [lang.code, lang.id]));
     return { languageMap, codeToIdMap };
 }
 
@@ -46,17 +102,24 @@ function hasValidLanguageCodes(languageCodes: string[], codeToIdMap: Record<stri
     return null;
 }
 
-function extractTags(duaHasTags: { tags: { name: string } }[]) {
+function extractTags(duaHasTags: DuaHasTag[]): string[] {
     return duaHasTags
         .map(relation => relation.tags.name)
         .filter((tag): tag is string => tag !== null);
 }
 
-function formatDuaContents(duaContents: any[], languageMap: Record<number, { code: string }>) {
+function formatDuaContents(duaContents: DuaContent[], languageMap: Record<number, Language>): { 
+    title: { [key: string]: string },
+    description: { [key: string]: string }, 
+    narratedBy: { [key: string]: string }, 
+    lines: Array<{ [key: string]: string | number | null | boolean, 
+        repetitions_number: number | null, end_of_section: boolean }> 
+    } {
     const title: { [key: string]: string } = {};
     const description: { [key: string]: string } = {};
+    const narratedBy: { [key: string]: string } = {};
     const lines: Array<{
-        [key: string]: string,
+        [key: string]: string | number | null | boolean,
         repetitions_number: number | null,
         end_of_section: boolean
     }> = [];
@@ -65,6 +128,7 @@ function formatDuaContents(duaContents: any[], languageMap: Record<number, { cod
         const languageCode = languageMap[content.language_id].code;
         title[languageCode] = content.title;
         description[languageCode] = content.description;
+        narratedBy[languageCode] = content.narrated_by;
         
         content.dua_content_lines?.forEach(line => {
             if (!lines[line.line_number - 1]) {
@@ -77,17 +141,21 @@ function formatDuaContents(duaContents: any[], languageMap: Record<number, { cod
         });
     });
 
-    // Entferne leere Einträge und komprimiere das Array
-    const compactLines = lines.filter(line => Object.keys(line).length > 2); // > 2 weil repetitions_number und end_of_section immer da sind
+    const compactLines = lines.filter(line => Object.keys(line).length > 2);
         
-    return { title, description, lines: compactLines };
+    return { title, description, narratedBy, lines: compactLines };
 }
 
-function convertLanguageCodesToIds(languageCodes: string[], codeToIdMap: Record<string, number>) {
+function convertLanguageCodesToIds(languageCodes: string[], codeToIdMap: Record<string, number>): (number | string)[] {
     return languageCodes.map(code => codeToIdMap[code] || code);
 }
 
-async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) {
+async function getDuas(
+    supabaseClient: SupabaseClient, 
+    languageCodes: string[], 
+    page: number = 1, 
+    pageSize: number = 10
+): Promise<Response> {
     const hasAtLeastOneLanguageCodeError = hasAtLeastOneLanguageCode(languageCodes);
     if (hasAtLeastOneLanguageCodeError) {
         return hasAtLeastOneLanguageCodeError;
@@ -100,7 +168,6 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
     }
     const languageIds = convertLanguageCodesToIds(languageCodes, codeToIdMap);
 
-    // Basisquery definieren
     let query = supabaseClient
         .from('duas')
         .select(`
@@ -109,28 +176,31 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
             dua_contents (
                 title,
                 description,
-                language_id
+                language_id,
+                narrated_by
             ),
             dua_has_tags (
                 tags (
                     name
                 )
             )
-        `);
+        `, { count: 'exact' });
 
-    // Sprachfilter anwenden
     query = query.filter('dua_contents.language_id', 'in', `(${languageIds.join(',')})`);
 
-    // Daten abrufen
-    const { data: duas, error } = await query;
+    // Hinzufügen von Paginierung
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+
+    const { data: duas, error, count } = await query;
     if (error) {
         console.error('Error fetching duas:', error);
         throw error;
     }
 
-    // Daten formatieren
-    const formattedDuas = duas.map(dua => {
-        const { title, description } = formatDuaContents(dua.dua_contents, languageMap);
+    const formattedDuas: FormattedDua[] = duas.map((dua: Dua) => {
+        const { title, description, narratedBy } = formatDuaContents(dua.dua_contents, languageMap);
         const tags = extractTags(dua.dua_has_tags);
         const languages = Object.keys(title);
 
@@ -140,18 +210,30 @@ async function getDuas(supabaseClient: SupabaseClient, languageCodes: string[]) 
             languages,
             title: title,
             description: description,
+            narratedBy,
             tags
         };
     }).filter(dua => dua.languages.length > 0);
 
-    // Antwort zurückgeben
-    return new Response(JSON.stringify(formattedDuas), {
+    const totalPages = Math.ceil((count || 0) / pageSize);
+
+    const response = {
+        data: formattedDuas,
+        pagination: {
+            page,
+            pageSize,
+            totalPages,
+            totalCount: count
+        }
+    };
+
+    return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
     });
 }
 
-async function getDua(supabaseClient: SupabaseClient, routeName: string, languageCodes: string[]) {
+async function getDua(supabaseClient: SupabaseClient, routeName: string, languageCodes: string[]): Promise<Response> {
     const languageCodesValidationError = hasAtLeastOneLanguageCode(languageCodes);
     if (languageCodesValidationError) {
         return languageCodesValidationError;
@@ -175,6 +257,7 @@ async function getDua(supabaseClient: SupabaseClient, routeName: string, languag
                 title,
                 description,
                 language_id,
+                narrated_by,
                 dua_content_lines (
                     id,
                     line_number,
@@ -205,17 +288,19 @@ async function getDua(supabaseClient: SupabaseClient, routeName: string, languag
         });
     }
 
-    const dua = duas[0];
-    const { title, description, lines } = formatDuaContents(dua.dua_contents, languageMap);
+    const dua = duas[0] as Dua;
+    const { title, description, narratedBy, lines } = formatDuaContents(dua.dua_contents, languageMap);
     const tags = extractTags(dua.dua_has_tags);
 
-    const formattedDua = {
+    const formattedDua: FormattedDuaWithLines = {
         route_name: dua.route_name,
         image_url: dua.image_url,
         title,
         description,
+        narratedBy,
         lines,
-        tags
+        tags,
+        languages: Object.keys(title)
     };
 
     return new Response(JSON.stringify(formattedDua), {
@@ -224,12 +309,11 @@ async function getDua(supabaseClient: SupabaseClient, routeName: string, languag
     });
 }
 
-Deno.serve(req => {
-    const {url, method} = req
+Deno.serve((req: Request) => {
+    const { url, method } = req
 
-    // This is needed if you're planning to invoke your function from a browser.
     if (method === 'OPTIONS') {
-        return new Response('ok', {headers: corsHeaders})
+        return new Response('ok', { headers: corsHeaders })
     }
 
     try {
@@ -238,24 +322,32 @@ Deno.serve(req => {
             Deno.env.get('SUPABASE_ANON_KEY') ?? ''
         )
 
-        // Extract query parameters
         const urlObj = new URL(url);
         const languageCodes = urlObj.searchParams.get('languages')?.split(',') || [];
+        const page = urlObj.searchParams.get('page');
+        const pageSize = urlObj.searchParams.get('size');
 
-        // For more details on URLPattern, check https://developer.mozilla.org/en-US/docs/Web/API/URL_Pattern_API
-        const taskPattern = new URLPattern({pathname: '/duas/:id'})
+        const taskPattern = new URLPattern({ pathname: '/duas/:id' })
         const matchingPath = taskPattern.exec(url)
         const routeName = matchingPath ? matchingPath.pathname.groups.id : null
 
         if (routeName == null) {
-            return getDuas(supabaseClient, languageCodes)
+            if (!page || !pageSize) {
+                return new Response(JSON.stringify({
+                    error: '"page" and "size" query parameters are required.'
+                }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 400, // Bad Request
+                });
+            }
+            return getDuas(supabaseClient, languageCodes, +page, +pageSize);
         }
         return getDua(supabaseClient, routeName, languageCodes)
     } catch (error) {
         console.error(error)
 
-        return new Response(JSON.stringify({error: error.message}), {
-            headers: {...corsHeaders, 'Content-Type': 'application/json'},
+        return new Response(JSON.stringify({ error: (error as Error).message }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400,
         })
     }
