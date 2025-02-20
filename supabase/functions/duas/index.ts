@@ -15,7 +15,7 @@ Deno.serve((req: Request) => {
     const urlObj = new URL(url);
     const languageCodes =
       urlObj.searchParams.get("languages")?.split(",").map((lc) =>
-        lc.toUpperCase()
+        lc.toLowerCase()
       ) || [];
     const page = urlObj.searchParams.get("page");
     const pageSize = urlObj.searchParams.get("size");

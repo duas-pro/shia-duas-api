@@ -57,10 +57,10 @@ INSERT INTO public.duas VALUES (2, '2025-02-08 16:39:18.09398+00', NULL, 'dua-aa
 -- Data for Name: languages; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-INSERT INTO public.languages VALUES ('EN', '2025-02-08 16:38:11.415606+00', NULL);
-INSERT INTO public.languages VALUES ('AR', '2025-02-08 16:38:16.321813+00', NULL);
-INSERT INTO public.languages VALUES ('TL', '2025-02-08 16:38:20.831092+00', NULL);
-INSERT INTO public.languages VALUES ('DE', '2025-02-08 16:38:25.642478+00', NULL);
+INSERT INTO public.languages VALUES ('en', '2025-02-08 16:38:11.415606+00', NULL);
+INSERT INTO public.languages VALUES ('ar', '2025-02-08 16:38:16.321813+00', NULL);
+INSERT INTO public.languages VALUES ('translit', '2025-02-08 16:38:20.831092+00', NULL);
+INSERT INTO public.languages VALUES ('de', '2025-02-08 16:38:25.642478+00', NULL);
 
 
 --
