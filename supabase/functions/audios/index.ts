@@ -10,7 +10,7 @@ Deno.serve(async (req: Request) => {
     const uuid = matchingPath ? matchingPath.pathname.groups.uuid : null;
 
     if (!uuid) {
-      return createResponse(400, {"error": "uuid is a required parameter"})
+      return createResponse(400, { "error": "uuid is a required parameter" });
     }
 
     const { data, error } = await supabaseClient
@@ -20,6 +20,7 @@ Deno.serve(async (req: Request) => {
         audio_low_quality_url,
         audio_high_quality_url,
         duration_in_ms,
+        audio_plays,
         reciters (
           full_name_tl,
           full_name_ar,
@@ -28,7 +29,7 @@ Deno.serve(async (req: Request) => {
         dua_lines_has_recitations (
           start_time_in_ms
         )
-          `)
+      `)
       .eq("uuid", uuid);
 
     if (error) {
@@ -37,8 +38,15 @@ Deno.serve(async (req: Request) => {
           JSON.stringify(error),
       );
       return createResponse(500, { error: `Internal Server Error` });
-    }    
+    }
     const duaRecitation = data[0];
+
+    await supabaseClient.from("dua_recitations").update({
+      "audio_plays": duaRecitation.audio_plays + 1,
+    }).eq(
+      "uuid",
+      uuid,
+    );
 
     const response = {
       uuid: duaRecitation.uuid,
@@ -46,10 +54,12 @@ Deno.serve(async (req: Request) => {
       audio_high_quality_url: duaRecitation.audio_high_quality_url,
       duration_in_ms: duaRecitation.duration_in_ms,
       reciter: duaRecitation.reciters,
-      startTimes: duaRecitation.dua_lines_has_recitations.map(l => l.start_time_in_ms) || []
+      startTimes: duaRecitation.dua_lines_has_recitations.map((l) =>
+        l.start_time_in_ms
+      ) || [],
     };
 
-    return createResponse(200, {"data": response})
+    return createResponse(200, { "data": response });
   } catch (err) {
     return new Response(String(err?.message ?? err), { status: 500 });
   }

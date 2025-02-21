@@ -23,6 +23,7 @@ export async function getDua(
             route_name,
             background_image_low_quality_url,
             background_image_high_quality_url,
+            page_views,
             dua_infos (
                 title,
                 description,
@@ -47,6 +48,7 @@ export async function getDua(
             dua_recitations (
                 uuid,
                 duration_in_ms,
+                audio_plays,
                 reciters (
                     full_name_tl,
                     full_name_ar,
@@ -62,6 +64,10 @@ export async function getDua(
       `(${languageCodes.join(",")})`,
     )
     .order("line_number", { referencedTable: "dua_lines", ascending: true })
+    .order("audio_plays", {
+      referencedTable: "dua_recitations",
+      ascending: false,
+    })
     .limit(1);
 
   if (error) {
@@ -77,6 +83,14 @@ export async function getDua(
   }
 
   const dua = duas[0] as unknown as Dua;
+
+  await supabaseClient.from("duas").update({
+    "page_views": dua.page_views + 1,
+  }).eq(
+    "route_name",
+    routeName,
+  );
+
   const { title, description, narratedBy } = formatDuaInfos(dua.dua_infos);
   const lines = formatDuaLines(dua.dua_lines!);
   const tags = dua.dua_has_tags.map((duaHasTag) => duaHasTag.tags.name);
