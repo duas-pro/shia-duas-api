@@ -19,8 +19,17 @@ You can access the API and find its complete documentation [here](https://www.po
 You can find a guide for local development [here](https://supabase.com/docs/guides/cli/local-development) and specific for Supabase Functions [here](https://supabase.com/docs/guides/functions/quickstart). If you successfully setted your local development environment up, you can access the local Supabase dashboard [here](http://localhost:54323/project/default). For your convenience:
 1. If you changed something in the database structure, run `supabase db reset`
 2. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-3. Run `supabase functions serve --env-file ./supabase/.env.local`.
-4. Make a HTTP request 🎉
+3. Add Row-Level Security (RLS) policies
+By default, all tables in Supabase have RLS enabled. Without an explicit read policy, your Supabase Functions will always return an empty list – not an error.
+To fix this:
+    - Open http://localhost:54323
+    - Go to each table you want to access (e.g. languages)
+    - Click on "RLS" tab
+    - Click "Add new policy"
+    - Choose "Enable read access for all users"
+    - Click "Review" → "Save policy"
+4. Run `supabase functions serve --env-file ./supabase/.env.local`.
+5. Make a HTTP request 🎉
 
 ## Upcoming Features and Roadmap
 We are constantly working to improve and expand the Shia Duas API. Our plans for future development include:
