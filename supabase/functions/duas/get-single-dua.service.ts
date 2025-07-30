@@ -3,6 +3,7 @@ import { validateLanguageCodes } from "../_shared/languages.service.ts";
 import { createResponse } from "../_shared/response.ts";
 import { formatDuaInfos, formatDuaLines } from "./dua.utils.ts";
 import { Dua, DuaView } from "./duas.model.ts";
+import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 
 export async function getDua(
   supabaseClient: SupabaseClient,
@@ -84,12 +85,13 @@ export async function getDua(
 
   const dua = duas[0] as unknown as Dua;
 
-  await supabaseClient.from("duas").update({
-    "page_views": dua.page_views + 1,
-  }).eq(
-    "route_name",
-    routeName,
-  );
+  const newPageViews = dua.page_views + 1;
+  const { increaseError } = await supabaseAdmin.from("duas").update({
+    "page_views": newPageViews,
+  }).eq("route_name", routeName);
+  if (increaseError) {
+    console.error("Error while increasing page_views to " + newPageViews + " for " + routeName + ": " + JSON.stringify(increaseError));
+  }
 
   const { title, description, narratedBy } = formatDuaInfos(dua.dua_infos);
   const lines = formatDuaLines(dua.dua_lines!);

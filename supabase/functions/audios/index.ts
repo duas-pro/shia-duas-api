@@ -1,5 +1,6 @@
 import { createResponse } from "../_shared/response.ts";
 import { supabaseClient } from "../_shared/supabase-client.ts";
+import { supabaseAdmin } from "../_shared/supabase-admin.ts";
 
 Deno.serve(async (req: Request) => {
   const { url } = req;
@@ -41,12 +42,15 @@ Deno.serve(async (req: Request) => {
     }
     const duaRecitation = data[0];
 
-    await supabaseClient.from("dua_recitations").update({
+    const { increaseError } = await supabaseAdmin.from("dua_recitations").update({
       "audio_plays": duaRecitation.audio_plays + 1,
     }).eq(
       "uuid",
       uuid,
     );
+    if (increaseError) {
+      console.error("Error while increasing page_views to " + newPageViews + " for " + routeName + ": " + JSON.stringify(increaseError));
+    }
 
     const response = {
       uuid: duaRecitation.uuid,
