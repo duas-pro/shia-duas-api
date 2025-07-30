@@ -45,7 +45,8 @@ export async function getDuas(
     )
     .filter("dua_infos.language_code", "in", `(${languageCodes.join(",")})`)
     .range(from, to)
-    .order("page_views", { ascending: false });
+    .order("page_views", { ascending: false })
+    .order("id", { ascending: true });
 
   if (error) {
     console.error("Error fetching duas:", JSON.stringify(error));
