@@ -28,7 +28,7 @@ To fix this:
     - Click "Add new policy"
     - Choose "Enable read access for all users"
     - Click "Review" → "Save policy"
-4. Run `supabase functions serve --env-file ./supabase/.env.local`.
+4. Run `supabase functions serve --no-verify-jwt`.
 5. Make a HTTP request 🎉
 
 ## Upcoming Features and Roadmap
