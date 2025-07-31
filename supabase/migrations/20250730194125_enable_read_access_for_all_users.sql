@@ -46,15 +46,6 @@ to public
 using (true);
 
 
-create policy "Enable update for all users"
-on "public"."dua_recitations"
-as permissive
-for update
-to public
-using (true)
-with check (true);
-
-
 create policy "Enable read access for all users"
 on "public"."dua_references"
 as permissive
