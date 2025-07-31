@@ -23,6 +23,7 @@ export async function getDua(
             background_image_high_quality_url,
             narrator,
             book,
+            api_calls,
             dua_infos (
                 title,
                 description,
