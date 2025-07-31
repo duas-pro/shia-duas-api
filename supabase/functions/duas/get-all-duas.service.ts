@@ -10,6 +10,7 @@ export async function getDuas(
   pageSize: number,
   languageCodes: string[],
   duaTypes: string[],
+  narrators: string[],
 ): Promise<Response> {
   const errorResponse = await validateLanguageCodes(
     languageCodes,

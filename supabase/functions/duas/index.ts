@@ -21,6 +21,10 @@ Deno.serve((req: Request) => {
       urlObj.searchParams.get("types")?.split(",").map((dt) =>
         dt.toLowerCase()
       ) || [];
+    const narrators = 
+      urlObj.searchParams.get("narrators")?.split(",").map((n) =>
+        n
+      ) || [];
     const page = urlObj.searchParams.get("page");
     const pageSize = urlObj.searchParams.get("size");
 
@@ -38,6 +42,7 @@ Deno.serve((req: Request) => {
         +(pageSize ?? 10),
         languageCodes,
         duaTypes,
+        narrators,
       );
     }
     return getDua(supabaseClient, routeName, languageCodes);
