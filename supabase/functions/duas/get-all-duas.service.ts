@@ -3,15 +3,15 @@ import { validateLanguageCodes } from "../_shared/languages.service.ts";
 import { createResponse } from "../_shared/response.ts";
 import { formatDuaInfos } from "./dua.utils.ts";
 import { Dua, DuaItemView } from "./duas.model.ts";
+import { supabaseClient } from "../_shared/supabase-client.ts";
 
 export async function getDuas(
-  supabaseClient: SupabaseClient,
-  languageCodes: string[],
   page: number,
   pageSize: number,
+  languageCodes: string[],
+  duaTypes: string[],
 ): Promise<Response> {
   const errorResponse = await validateLanguageCodes(
-    supabaseClient,
     languageCodes,
   );
   if (errorResponse) {
@@ -28,7 +28,6 @@ export async function getDuas(
             route_name,
             background_image_low_quality_url,
             background_image_high_quality_url,
-            page_views,
             dua_infos (
                 title,
                 description,
@@ -44,6 +43,7 @@ export async function getDuas(
       { count: "exact" },
     )
     .filter("dua_infos.language_code", "in", `(${languageCodes.join(",")})`)
+    .filter("type", "in", `(${duaTypes.join(",")})`)
     .range(from, to)
     .order("page_views", { ascending: false })
     .order("id", { ascending: true });

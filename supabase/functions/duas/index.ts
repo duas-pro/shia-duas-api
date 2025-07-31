@@ -17,6 +17,10 @@ Deno.serve((req: Request) => {
       urlObj.searchParams.get("languages")?.split(",").map((lc) =>
         lc.toLowerCase()
       ) || [];
+    const duaTypes =
+      urlObj.searchParams.get("types")?.split(",").map((dt) =>
+        dt.toLowerCase()
+      ) || [];
     const page = urlObj.searchParams.get("page");
     const pageSize = urlObj.searchParams.get("size");
 
@@ -30,10 +34,10 @@ Deno.serve((req: Request) => {
 
     if (routeName == null) {
       return getDuas(
-        supabaseClient,
-        languageCodes,
         +(page ?? 1),
         +(pageSize ?? 10),
+        languageCodes,
+        duaTypes,
       );
     }
     return getDua(supabaseClient, routeName, languageCodes);
