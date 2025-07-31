@@ -21,7 +21,7 @@ Deno.serve(async (req: Request) => {
         audio_low_quality_url,
         audio_high_quality_url,
         duration_in_ms,
-        audio_plays,
+        api_calls,
         reciters (
           full_name_tl,
           full_name_ar,
@@ -40,16 +40,21 @@ Deno.serve(async (req: Request) => {
       );
       return createResponse(500, { error: `Internal Server Error` });
     }
+    if (data.length === 0) {
+      console.error("Dua audio for " + uuid + " not found.");
+      return createResponse(404, { error: `Not Found` });
+    }
     const duaRecitation = data[0];
 
+    const newApiCallsCount = duaRecitation.api_calls + 1;
     const { increaseError } = await supabaseAdmin.from("dua_recitations").update({
-      "audio_plays": duaRecitation.audio_plays + 1,
+      "api_calls": newApiCallsCount,
     }).eq(
       "uuid",
       uuid,
     );
     if (increaseError) {
-      console.error("Error while increasing page_views to " + newPageViews + " for " + routeName + ": " + JSON.stringify(increaseError));
+      console.error("Error while increasing api_calls to " + newApiCallsCount + " for audio " + uuid + ": " + JSON.stringify(increaseError));
     }
 
     const response = {

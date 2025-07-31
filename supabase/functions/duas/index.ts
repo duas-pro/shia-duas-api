@@ -13,6 +13,8 @@ Deno.serve((req: Request) => {
 
   try {
     const urlObj = new URL(url);
+    const page = urlObj.searchParams.get("page");
+    const pageSize = urlObj.searchParams.get("size");
     const languageCodes =
       urlObj.searchParams.get("languages")?.split(",").map((lc) =>
         lc.toLowerCase()
@@ -20,13 +22,9 @@ Deno.serve((req: Request) => {
     const duaTypes =
       urlObj.searchParams.get("types")?.split(",").map((dt) =>
         dt.toLowerCase()
-      ) || [];
-    const narrators = 
-      urlObj.searchParams.get("narrators")?.split(",").map((n) =>
-        n
-      ) || [];
-    const page = urlObj.searchParams.get("page");
-    const pageSize = urlObj.searchParams.get("size");
+      ) || ["dua", "ziyarat"];
+    const types = urlObj.searchParams.get("types")?.split(",").filter(n => n && n.trim() !== "").map((dt) => dt.toLowerCase());
+    const narrators = urlObj.searchParams.get("narrators")?.split(",").filter(n => n && n.trim() !== "");
 
     const taskPattern = new URLPattern({ pathname: "/duas/:id" });
     const matchingPath = taskPattern.exec(url);
@@ -41,7 +39,7 @@ Deno.serve((req: Request) => {
         +(page ?? 1),
         +(pageSize ?? 10),
         languageCodes,
-        duaTypes,
+        types,
         narrators,
       );
     }

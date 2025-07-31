@@ -15,8 +15,9 @@ export interface DuaInfo {
   id?: number;
   title: string;
   description: string;
-  narrated_by: string;
+  seo_description: string;
   language_code: string;
+  word_count: number;
 }
 
 export interface Tag {
@@ -40,6 +41,7 @@ export interface DuaRecitation {
   audio_high_quality_url?: string;
   reciter: Reciter;
   audio_plays: number;
+  api_calls: number;
 }
 
 export interface Dua {
@@ -47,6 +49,9 @@ export interface Dua {
   background_image_low_quality_url: string;
   background_image_high_quality_url: string;
   page_views: number;
+  api_calls: number;
+  narrator: string;
+  book: string;
   dua_infos: DuaInfo[];
   dua_lines?: DuaLine[];
   dua_has_tags: DuaHasTag[];

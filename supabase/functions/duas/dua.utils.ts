@@ -2,21 +2,24 @@ import { DuaInfo, DuaLine } from "./duas.model.ts";
 
 export function formatDuaInfos(duaInfos: DuaInfo[]): { 
     title: { [key: string]: string },
-    description: { [key: string]: string }, 
-    narratedBy: { [key: string]: string },
+    description: { [key: string]: string },
+    seoDescription: { [key: string]: string },
+    wordCount: { [key: string]: number },
     } {
     const title: { [key: string]: string } = {};
     const description: { [key: string]: string } = {};
-    const narratedBy: { [key: string]: string } = {};
+    const seoDescription: { [key: string]: string } = {};
+    const wordCount: { [key: string]: number } = {};
 
     duaInfos.forEach(duaInfo => {
         const languageCode = duaInfo.language_code;
         title[languageCode] = duaInfo.title;
         description[languageCode] = duaInfo.description;
-        narratedBy[languageCode] = duaInfo.narrated_by;
+        seoDescription[languageCode] = duaInfo.seo_description;
+        wordCount[languageCode] = duaInfo.word_count;
     });
         
-    return { title, description, narratedBy };
+    return { title, description, seoDescription, wordCount };
 }
 
 export function formatDuaLines(duaLines: DuaLine[]): { [key: string]: string | number | boolean | null }[] {

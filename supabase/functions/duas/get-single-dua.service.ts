@@ -10,10 +10,7 @@ export async function getDua(
   routeName: string,
   languageCodes: string[],
 ): Promise<Response> {
-  const errorResponse = await validateLanguageCodes(
-    supabaseClient,
-    languageCodes,
-  );
+  const errorResponse = await validateLanguageCodes(languageCodes);
   if (errorResponse) {
     return errorResponse;
   }
@@ -24,12 +21,14 @@ export async function getDua(
             route_name,
             background_image_low_quality_url,
             background_image_high_quality_url,
-            page_views,
+            narrator,
+            book,
             dua_infos (
                 title,
                 description,
+                seo_description,
                 language_code,
-                narrated_by
+                word_count
             ),
             dua_lines (
                 line_number,
@@ -49,7 +48,6 @@ export async function getDua(
             dua_recitations (
                 uuid,
                 duration_in_ms,
-                audio_plays,
                 reciters (
                     full_name_tl,
                     full_name_ar,
@@ -85,28 +83,31 @@ export async function getDua(
 
   const dua = duas[0] as unknown as Dua;
 
-  const newPageViews = dua.page_views + 1;
+  const newApiCallsCount = dua.api_calls + 1;
   const { increaseError } = await supabaseAdmin.from("duas").update({
-    "page_views": newPageViews,
+    "api_calls": newApiCallsCount,
   }).eq("route_name", routeName);
   if (increaseError) {
-    console.error("Error while increasing page_views to " + newPageViews + " for " + routeName + ": " + JSON.stringify(increaseError));
+    console.error("Error while increasing api_calls to " + newApiCallsCount + " for " + routeName + ": " + JSON.stringify(increaseError));
   }
 
-  const { title, description, narratedBy } = formatDuaInfos(dua.dua_infos);
+  const { title, description, seoDescription, wordCount } = formatDuaInfos(dua.dua_infos);
   const lines = formatDuaLines(dua.dua_lines!);
   const tags = dua.dua_has_tags.map((duaHasTag) => duaHasTag.tags.name);
 
   const formattedDua: DuaView = {
     route_name: dua.route_name,
     image_url: dua.background_image_high_quality_url,
+    narrator: dua.narrator,
+    book: dua.book,
     title,
     description,
-    narratedBy,
-    lines,
+    seo_description: seoDescription,
+    word_count: wordCount,
     tags,
     languages: languageCodes,
     recitations: dua.dua_recitations!,
+    lines,
   };
 
   return createResponse(200, { "data": formattedDua });
