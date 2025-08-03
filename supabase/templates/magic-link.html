@@ -1,0 +1,23 @@
+<div style="margin: 0; padding: 0; background-color: #f9f9f9;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="text-align: center; padding: 40px 0;">
+    <tr>
+      <td>
+        <!-- Logo -->
+        <img src="https://dhreftlcbkiqbsprhjqh.supabase.co/storage/v1/object/public/branding/logo.png" alt="Logo" style="height: 72px; margin-bottom: 16px;" />
+        <!-- Text -->
+        <p style="font-family: Arial, sans-serif; font-size: 16px; color: #333; margin-bottom: 16px;">
+          {{ .Data.description }}
+        </p>
+        <!-- Login Button -->
+        <a href="{{ .SiteURL }}/en/auth/confirm?token_hash={{ .TokenHash }}&redirect_to{{.RedirectTo}}&type=email"
+          style="display: inline-block; padding: 12px 24px; background-color: #0fbdbd; color: white; text-decoration: none; font-family: Arial, sans-serif; font-size: 16px; border-radius: 4px; margin-bottom: 16px;">
+          {{ .Data.button }}
+        </a>
+        <!-- Footer -->
+        <p style="font-family: Arial, sans-serif; font-size: 12px; color: #888;">
+          {{ .Data.footer_note }}
+        </p>
+      </td>
+    </tr>
+  </table>
+</div>
