@@ -52,7 +52,7 @@ export async function getDuas(
     .from("duas")
     .select(
       `
-            route_name,
+            slug,
             background_image_low_quality_url,
             narrator,
             book,
@@ -241,7 +241,6 @@ export async function getDuas(
     const { title, description, wordCount } = formatDuaInfos(dua.dua_infos);
     const tags = dua.dua_has_tags.map((duaHasTag) => duaHasTag.tags.name);
     const languages = Object.keys(title);
-    console.log("recit " + JSON.stringify(dua.dua_recitations));
     const uniqueReciters = Array.from(
       new Map(
         dua.dua_recitations?.filter((r) => r.reciters).map(
@@ -250,7 +249,7 @@ export async function getDuas(
       ).values(),
     );
     return {
-      route_name: dua.route_name,
+      slug: dua.slug,
       image_url: dua.background_image_low_quality_url,
       languages,
       title,

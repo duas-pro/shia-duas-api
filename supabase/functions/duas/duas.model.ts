@@ -45,7 +45,7 @@ export interface DuaRecitation {
 }
 
 export interface Dua {
-  route_name: string;
+  slug: string;
   background_image_low_quality_url: string;
   background_image_high_quality_url: string;
   page_views: number;
@@ -59,7 +59,7 @@ export interface Dua {
 }
 
 export interface DuaView {
-  route_name: string;
+  slug: string;
   image_url: string;
   languages: string[];
   title: { [key: string]: string };
@@ -71,7 +71,7 @@ export interface DuaView {
 }
 
 export interface DuaItemView {
-  route_name: string;
+  slug: string;
   image_url: string;
   languages: string[];
   title: { [key: string]: string };

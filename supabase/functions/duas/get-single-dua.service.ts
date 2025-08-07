@@ -18,7 +18,7 @@ export async function getDua(
   const { data: duas, error } = await supabaseClient
     .from("duas")
     .select(`
-            route_name,
+            slug,
             background_image_low_quality_url,
             background_image_high_quality_url,
             narrator,
@@ -56,7 +56,7 @@ export async function getDua(
                 )
             )
         `)
-    .eq("route_name", routeName)
+    .eq("slug", routeName)
     .filter("dua_infos.language_code", "in", `(${languageCodes.join(",")})`)
     .filter(
       "dua_lines.dua_line_texts.language_code",
@@ -87,7 +87,7 @@ export async function getDua(
   const newApiCallsCount = dua.api_calls + 1;
   const { increaseError } = await supabaseAdmin.from("duas").update({
     "api_calls": newApiCallsCount,
-  }).eq("route_name", routeName);
+  }).eq("slug", routeName);
   if (increaseError) {
     console.error("Error while increasing api_calls to " + newApiCallsCount + " for " + routeName + ": " + JSON.stringify(increaseError));
   }
@@ -97,7 +97,7 @@ export async function getDua(
   const tags = dua.dua_has_tags.map((duaHasTag) => duaHasTag.tags.name);
 
   const formattedDua: DuaView = {
-    route_name: dua.route_name,
+    slug: dua.slug,
     image_url: dua.background_image_high_quality_url,
     narrator: dua.narrator,
     book: dua.book,

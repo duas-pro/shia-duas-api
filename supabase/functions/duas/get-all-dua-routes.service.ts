@@ -6,7 +6,7 @@ export async function getDuaRoutes(
 ): Promise<Response> {
   const { data, error } = await supabaseClient
     .from("duas")
-    .select(`route_name`);
+    .select(`slug`);
 
   if (error) {
     console.error(
@@ -15,7 +15,7 @@ export async function getDuaRoutes(
     );
     return createResponse(500, { error: `Internal Server Error` });
   }
-  const routeNames = data.map((item) => item.route_name);
+  const routeNames = data.map((item) => item.slug);
 
-  return createResponse(200, { "data": { route_names: routeNames } });
+  return createResponse(200, { "data": { slugs: routeNames } });
 }
