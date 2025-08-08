@@ -21,7 +21,7 @@ You can find a guide for local development [here](https://supabase.com/docs/guid
 2. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
 3. Run `supabase functions serve --no-verify-jwt`.
 4. Make a HTTP request 🎉
-5. If you changed something in the Studio and want to create a SQL migration, use supabase `db diff --schema public`.
+5. If you changed something in the Studio and want to create a SQL migration, use supabase `supabase db diff --schema public`.
 
 ### Production Deployment
 Edge Functions and database migrations are deployed automatically on push on the main branch.
