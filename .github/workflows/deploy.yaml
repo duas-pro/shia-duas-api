@@ -18,5 +18,6 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+      - run: supabase link --project-ref $PROJECT_ID
       - run: supabase db push
-      - run: supabase functions deploy --project-ref $PROJECT_ID --no-verify-jwt
+      - run: supabase functions deploy --no-verify-jwt
