@@ -16,11 +16,15 @@ This API is developed as a Supabase Function using JavaScript, providing a scala
 You can access the API and find its complete documentation [here](https://www.postman.com/duas-pro/workspace/shia-duas-api).
 
 ## Local Development
-You can find a guide for local development [here](https://supabase.com/docs/guides/cli/local-development) and specific for Supabase Functions [here](https://supabase.com/docs/guides/functions/quickstart). If you successfully setted your local development environment up, you can access the local Supabase dashboard [here](http://localhost:54323/project/default). For your convenience:
-1. If you changed something in the database structure, run `supabase db reset`
+You can find a guide for local development [here](https://supabase.com/docs/guides/local-development/overview) and specific for Supabase Functions [here](https://supabase.com/docs/guides/functions/quickstart). If you successfully setted your local development environment up, you can access the local Supabase dashboard [here](http://localhost:54323/project/default). For your convenience:
+1. Make sure Docker is running
 2. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
 3. Run `supabase functions serve --no-verify-jwt`.
 4. Make a HTTP request 🎉
+5. If you changed something in the Studio and want to create a SQL migration, use supabase `db diff --schema public`.
+
+### Production Deployment
+Edge Functions and database migrations are deployed automatically on push on the main branch.
 
 ## Upcoming Features and Roadmap
 We are constantly working to improve and expand the Shia Duas API. Our plans for future development include:
@@ -35,3 +39,9 @@ We are constantly working to improve and expand the Shia Duas API. Our plans for
 
 ## Contribution
 We welcome suggestions and contributions to help us achieve these goals and to identify new ways to enhance the API.
+
+Contributors:
+
+<a href="https://github.com/anquuni/duas-pro-frontend/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=anquuni/duas-pro-frontend" />
+</a>
