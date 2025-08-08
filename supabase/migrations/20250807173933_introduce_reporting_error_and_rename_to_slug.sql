@@ -16,7 +16,7 @@ alter table "public"."dua_infos" drop column "narrated_by";
 
 alter table "public"."duas" add column "slug" text not null;
 
-update table "public"."duas" set slug = route_name;
+update "public"."duas" set slug = route_name;
 
 alter table "public"."duas" drop column "route_name";
 
