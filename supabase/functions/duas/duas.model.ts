@@ -20,14 +20,6 @@ export interface DuaInfo {
   word_count: number;
 }
 
-export interface Tag {
-  name: string;
-}
-
-export interface DuaHasTag {
-  tags: Tag;
-}
-
 export interface Reciter {
   full_name_tl: string;
   full_name_ar: string;
@@ -54,7 +46,7 @@ export interface Dua {
   book: string;
   dua_infos: DuaInfo[];
   dua_lines?: DuaLine[];
-  dua_has_tags: DuaHasTag[];
+  tags: string[];
   dua_recitations?: DuaRecitation[];
 }
 
@@ -64,7 +56,10 @@ export interface DuaView {
   languages: string[];
   title: { [key: string]: string };
   description: { [key: string]: string };
-  narratedBy: { [key: string]: string };
+  seo_description: { [key: string]: string };
+  word_count: { [key: string]: number };
+  narrator: string;
+  book: string;
   tags: string[];
   lines: { [key: string]: string | number | boolean | null }[];
   recitations: DuaRecitation[];
@@ -76,6 +71,6 @@ export interface DuaItemView {
   languages: string[];
   title: { [key: string]: string };
   description: { [key: string]: string };
-  narratedBy: { [key: string]: string };
+  narrator: string;
   tags: string[];
 }

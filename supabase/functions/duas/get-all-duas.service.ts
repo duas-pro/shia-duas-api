@@ -56,16 +56,12 @@ export async function getDuas(
             background_image_low_quality_url,
             narrator,
             book,
+            tags,
             dua_infos (
                 title,
                 description,
                 language_code,
                 word_count
-            ),
-            dua_has_tags (
-                tags (
-                    name
-                )
             ),
             dua_recitations (
                 uuid,
@@ -95,47 +91,19 @@ export async function getDuas(
       query = query.filter("type", "in", `(${concreteTypes.join(",")})`);
     }
   }
-  
+
   if (tags.length > 0) {
     const includeNone = tags.includes("__none");
     const concreteTags = tags.filter((t) => t !== "__none");
 
     if (includeNone && concreteTags.length > 0) {
-      const { data: taggedDuas, error } = await supabaseClient
-        .from("dua_has_tags")
-        .select("dua_id, tags(name)")
-        .in("tags.name", concreteTags);
-
-      if (error) {
-        console.error("Tag filter failed:", error);
-        return createResponse(500, { error: "Tag filter failed" });
-      }
-
-      const matchingTagDuaIds = taggedDuas
-        .filter((t) => t.tags !== null)
-        .map((t) => t.dua_id);
-
       query = query.or(
-        `id.in.(${matchingTagDuaIds.join(",")}),dua_has_tags.is.null`,
+        `tags.overlaps.{${concreteTags.join(",")}},tags.is.null`
       );
     } else if (includeNone) {
-      query = query.is("dua_has_tags", null);
+      query = query.is("tags", null);
     } else if (concreteTags.length > 0) {
-      const { data: taggedDuas, error } = await supabaseClient
-        .from("dua_has_tags")
-        .select("dua_id, tags(name)")
-        .in("tags.name", concreteTags);
-
-      if (error) {
-        console.error("Tag filter failed:", error);
-        return createResponse(500, { error: "Tag filter failed" });
-      }
-
-      const matchingTagDuaIds = taggedDuas
-        .filter((t) => t.tags !== null)
-        .map((t) => t.dua_id);
-
-      query = query.in("id", matchingTagDuaIds);
+      query = query.overlaps("tags", concreteTags);
     }
   }
 
@@ -239,7 +207,6 @@ export async function getDuas(
 
   const formattedDuas: DuaItemView[] = duas.map((dua: Dua) => {
     const { title, description, wordCount } = formatDuaInfos(dua.dua_infos);
-    const tags = dua.dua_has_tags.map((duaHasTag) => duaHasTag.tags.name);
     const languages = Object.keys(title);
     const uniqueReciters = Array.from(
       new Map(
@@ -257,7 +224,7 @@ export async function getDuas(
       word_count: wordCount,
       narrator: dua.narrator,
       book: dua.book,
-      tags,
+      tags: dua.tags,
       reciters: uniqueReciters,
     };
   });

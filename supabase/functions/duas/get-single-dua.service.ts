@@ -24,6 +24,7 @@ export async function getDua(
             narrator,
             book,
             api_calls,
+            tags,
             dua_infos (
                 title,
                 description,
@@ -39,11 +40,6 @@ export async function getDua(
                 dua_line_texts (
                     text,
                     language_code
-                )
-            ),
-            dua_has_tags (
-                tags (
-                    name
                 )
             ),
             dua_recitations (
@@ -67,8 +63,7 @@ export async function getDua(
     .order("audio_plays", {
       referencedTable: "dua_recitations",
       ascending: false,
-    })
-    .limit(1);
+    });
 
   if (error) {
     console.error(
@@ -85,7 +80,7 @@ export async function getDua(
   const dua = duas[0] as unknown as Dua;
 
   const newApiCallsCount = dua.api_calls + 1;
-  const { increaseError } = await supabaseAdmin.from("duas").update({
+  const { error: increaseError } = await supabaseAdmin.from("duas").update({
     "api_calls": newApiCallsCount,
   }).eq("slug", routeName);
   if (increaseError) {
@@ -94,7 +89,6 @@ export async function getDua(
 
   const { title, description, seoDescription, wordCount } = formatDuaInfos(dua.dua_infos);
   const lines = formatDuaLines(dua.dua_lines!);
-  const tags = dua.dua_has_tags.map((duaHasTag) => duaHasTag.tags.name);
 
   const formattedDua: DuaView = {
     slug: dua.slug,
@@ -105,7 +99,7 @@ export async function getDua(
     description,
     seo_description: seoDescription,
     word_count: wordCount,
-    tags,
+    tags: dua.tags,
     languages: languageCodes,
     recitations: dua.dua_recitations!,
     lines,
