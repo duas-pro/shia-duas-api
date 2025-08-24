@@ -39,6 +39,7 @@ Deno.serve((req: Request) => {
     const matchingPath = taskPattern.exec(url);
     const routeName = matchingPath ? matchingPath.pathname.groups.id : null;
 
+    // TODO: Deprecated
     if (urlObj.pathname === "/duas/routes") {
       return getDuaRoutes(supabaseClient);
     }

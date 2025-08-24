@@ -1,6 +1,7 @@
 import SupabaseClient from "https://esm.sh/v135/@supabase/supabase-js@2.7.1/dist/module/SupabaseClient.js";
 import { createResponse } from "../_shared/response.ts";
 
+// TODO: Deprecated
 export async function getDuaRoutes(
   supabaseClient: SupabaseClient,
 ): Promise<Response> {
