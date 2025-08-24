@@ -10,6 +10,8 @@ Deno.serve(async () => {
     .not("name", "in", `(${excludedTags.join(",")})`)
     .order("name", { ascending: true });
 
+    // number of duas inside this collection
+
   if (error) {
     console.error(
       "Error while fetching tags " + String(error?.message ?? error),

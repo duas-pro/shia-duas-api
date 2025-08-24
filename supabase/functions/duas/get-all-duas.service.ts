@@ -15,66 +15,53 @@ export async function getDuas(
   reciters: string[],
   book: string | null,
   hasAudio: string | null,
-  minWordCount: string | null,
-  maxWordCount: string | null,
+  collections: string[],
 ): Promise<Response> {
-  const errorResponse = await validateLanguageCodes(
-    languageCodes,
-  );
-  if (errorResponse) {
-    return errorResponse;
-  }
+  const errorResponse = await validateLanguageCodes(languageCodes);
+  if (errorResponse) return errorResponse;
 
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let orderBy: { column: string; referencedTable: string; ascending: boolean } =
-    { column: "page_views", referencedTable: "", ascending: false };
-  if (sort === "name_asc") {
-    orderBy = {
-      column: "title",
-      referencedTable: "dua_infos",
-      ascending: true,
-    };
-  } else if (sort === "name_desc") {
-    orderBy = {
-      column: "title",
-      referencedTable: "dua_infos",
-      ascending: false,
-    };
-  } else if (sort === "popularity_asc") {
-    orderBy = { column: "page_views", referencedTable: "", ascending: true };
-  } else if (sort === "popularity_desc") {
-    orderBy = { column: "page_views", referencedTable: "", ascending: false };
-  }
+  // 1) Selects vorbereiten
+  const selectLeft = `
+    id,
+    slug,
+    background_image_low_quality_url,
+    narrator,
+    book,
+    tags,
+    dua_infos (
+      title,
+      description,
+      language_code,
+      word_count
+    ),
+    dua_recitations (
+      uuid,
+      duration_in_ms,
+      reciters ( full_name_tl, full_name_ar, profile_image_url )
+    ),
+    collection_has_duas!left (
+      collection_id,
+      collections (
+        id,
+        slug,
+        image_url,
+        collection_translations ( language_code, title, description, seo_description )
+      )
+    )
+  `;
 
+  const selectInner = selectLeft.replace("!left", "!inner");
+
+  const hasCollectionFilter = Array.isArray(collections) &&
+    collections.length > 0;
+
+  // 2) Query-Grundlage (Join-Typ abhängig vom Filter)
   let query = supabaseClient
     .from("duas")
-    .select(
-      `
-            slug,
-            background_image_low_quality_url,
-            narrator,
-            book,
-            tags,
-            dua_infos (
-                title,
-                description,
-                language_code,
-                word_count
-            ),
-            dua_recitations (
-                uuid,
-                duration_in_ms,
-                reciters (
-                    full_name_tl,
-                    full_name_ar,
-                    profile_image_url
-                )
-            )
-        `,
-      { count: "exact" },
-    )
+    .select(hasCollectionFilter ? selectInner : selectLeft, { count: "exact" })
     .filter("dua_infos.language_code", "in", `(${languageCodes.join(",")})`);
 
   if (types.length > 0) {
@@ -98,7 +85,7 @@ export async function getDuas(
 
     if (includeNone && concreteTags.length > 0) {
       query = query.or(
-        `tags.overlaps.{${concreteTags.join(",")}},tags.is.null`
+        `tags.overlaps.{${concreteTags.join(",")}},tags.is.null`,
       );
     } else if (includeNone) {
       query = query.is("tags", null);
@@ -126,47 +113,63 @@ export async function getDuas(
     }
   }
 
+  // 3) Collections-Filter (nur Slugs, kein __none)
+  if (hasCollectionFilter) {
+    const { data: colRows, error: colErr } = await supabaseClient
+      .from("collections")
+      .select("id")
+      .in("slug", collections);
+
+    if (colErr) {
+      console.error("Error resolving collection slugs:", colErr);
+      return createResponse(500, { error: "Internal Server Error" });
+    }
+
+    const colIds = (colRows ?? []).map((r) => r.id);
+
+    if (colIds.length === 0) {
+      return createResponse(200, {
+        data: [],
+        pagination: { page, pageSize, totalPages: 0, totalCount: 0 },
+      });
+    }
+
+    query = query.in("collection_has_duas.collection_id", colIds);
+  }
+
+  // --- Reciter-Filter (deins, unverändert in Logik) ---
   if (reciters.length > 0) {
     const includeNone = reciters.includes("__none");
     const concreteReciters = reciters.filter((r) => r !== "__none");
 
-    if (includeNone && concreteReciters.length > 0) {
-      const { data: recitations, error } = await supabaseClient
+    // resolve dua_ids per reciter
+    const { data: recitations, error: recErr } = concreteReciters.length > 0
+      ? await supabaseClient
         .from("dua_recitations")
         .select("dua_id, reciters(full_name_tl)")
-        .in("reciters.full_name_tl", concreteReciters);
+        .in("reciters.full_name_tl", concreteReciters)
+      : { data: [], error: null };
 
-      if (error) {
-        console.error(
-          "Error fetching recitations by reciter:",
-          JSON.stringify(error),
-        );
-        return createResponse(500, { error: "Reciter filter failed" });
-      }
+    if (recErr) {
+      console.error(
+        "Error fetching recitations by reciter:",
+        JSON.stringify(recErr),
+      );
+      return createResponse(500, { error: "Reciter filter failed" });
+    }
 
-      const validRecitations = recitations.filter((r) => r.reciters !== null);
-      const matchingDuaIds = validRecitations.map((r) => r.dua_id);
+    const validRecitations = (recitations ?? []).filter((r) =>
+      r.reciters !== null
+    );
+    const matchingDuaIds = validRecitations.map((r) => r.dua_id);
+
+    if (includeNone && concreteReciters.length > 0) {
       query = query.or(
         `id.in.(${matchingDuaIds.join(",")}),dua_recitations.is.null`,
       );
     } else if (includeNone) {
       query = query.is("dua_recitations", null);
     } else if (concreteReciters.length > 0) {
-      const { data: recitations, error } = await supabaseClient
-        .from("dua_recitations")
-        .select("dua_id, reciters(full_name_tl)")
-        .in("reciters.full_name_tl", concreteReciters);
-
-      if (error) {
-        console.error(
-          "Error fetching recitations by reciter:",
-          JSON.stringify(error),
-        );
-        return createResponse(500, { error: "Reciter filter failed" });
-      }
-
-      const validRecitations = recitations.filter((r) => r.reciters !== null);
-      const matchingDuaIds = validRecitations.map((r) => r.dua_id);
       query = query.in("id", matchingDuaIds);
     }
   }
@@ -178,12 +181,9 @@ export async function getDuas(
       query = query.eq("book", book);
     }
   }
-
-  if (hasAudio === "true") {
-    query = query.not("dua_recitations", "is", null);
-  } else if (hasAudio === "false") {
-    query = query.is("dua_recitations", null);
-  }
+  
+  if (hasAudio === "true") query = query.not("dua_recitations", "is", null);
+  else if (hasAudio === "false") query = query.is("dua_recitations", null);
 
   // TODO: This cannot work because only the word_count of one language should only be considered.
   // if (minWordCount) {
@@ -192,6 +192,27 @@ export async function getDuas(
   // if (maxWordCount) {
   //   query = query.lte("dua_infos.word_count", +maxWordCount);
   // }
+
+  // Sort
+  let orderBy: { column: string; referencedTable: string; ascending: boolean } =
+    { column: "page_views", referencedTable: "", ascending: false };
+  if (sort === "name_asc") {
+    orderBy = {
+      column: "title",
+      referencedTable: "dua_infos",
+      ascending: true,
+    };
+  } else if (sort === "name_desc") {
+    orderBy = {
+      column: "title",
+      referencedTable: "dua_infos",
+      ascending: false,
+    };
+  } else if (sort === "popularity_asc") {
+    orderBy = { column: "page_views", referencedTable: "", ascending: true };
+  } else if (sort === "popularity_desc") {
+    orderBy = { column: "page_views", referencedTable: "", ascending: false };
+  }
 
   const { data: duas, error, count } = await query
     .range(from, to)
@@ -205,16 +226,47 @@ export async function getDuas(
     return createResponse(500, { error: `Internal Server Error` });
   }
 
-  const formattedDuas: DuaItemView[] = duas.map((dua: Dua) => {
+  // --- Mapping: dua_infos + collections(collection_translations) ins gewünschte Schema ---
+  const formatted = (duas ?? []).map((dua: any) => {
     const { title, description, wordCount } = formatDuaInfos(dua.dua_infos);
     const languages = Object.keys(title);
+
     const uniqueReciters = Array.from(
       new Map(
-        dua.dua_recitations?.filter((r) => r.reciters).map(
-          (r) => [r.reciters.full_name_tl, r.reciters]
-        ),
+        (dua.dua_recitations ?? [])
+          .filter((r: any) => r.reciters)
+          .map((r: any) => [r.reciters.full_name_tl, r.reciters]),
       ).values(),
     );
+
+    const collectionsRaw = (dua.collection_has_duas ?? [])
+      .map((chd: any) => chd.collections)
+      .filter(Boolean);
+
+    const seen = new Set<string>();
+    const collectionsView = collectionsRaw.filter((c: any) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    }).map((c: any) => {
+      const tTitle: Record<string, string | null> = {};
+      const tDesc: Record<string, string | null> = {};
+      const tSeo: Record<string, string | null> = {};
+      (c.collection_translations ?? []).forEach((tr: any) => {
+        tTitle[tr.language_code] = tr.title ?? null;
+        tDesc[tr.language_code] = tr.description ?? null;
+        tSeo[tr.language_code] = tr.seo_description ?? null;
+      });
+      return {
+        id: c.id,
+        slug: c.slug,
+        image_url: c.image_url,
+        title: tTitle,
+        description: tDesc,
+        seo_description: tSeo,
+      };
+    });
+
     return {
       slug: dua.slug,
       image_url: dua.background_image_low_quality_url,
@@ -226,18 +278,14 @@ export async function getDuas(
       book: dua.book,
       tags: dua.tags,
       reciters: uniqueReciters,
-    };
+      collections: collectionsView,
+    } as DuaItemView;
   });
 
   const totalPages = Math.ceil((count || 0) / pageSize);
 
   return createResponse(200, {
-    data: formattedDuas,
-    pagination: {
-      page,
-      pageSize,
-      totalPages,
-      totalCount: count,
-    },
+    data: formatted,
+    pagination: { page, pageSize, totalPages, totalCount: count },
   });
 }

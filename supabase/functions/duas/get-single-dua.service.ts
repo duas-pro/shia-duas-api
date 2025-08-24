@@ -50,7 +50,16 @@ export async function getDua(
                     full_name_ar,
                     profile_image_url
                 )
-            )
+            ),
+  collection_has_duas!left (
+    collection_id,
+    collections (
+      id,
+      slug,
+      image_url,
+      collection_translations ( language_code, title, description, seo_description )
+    )
+  )
         `)
     .eq("slug", routeName)
     .filter("dua_infos.language_code", "in", `(${languageCodes.join(",")})`)
@@ -90,6 +99,34 @@ export async function getDua(
   const { title, description, seoDescription, wordCount } = formatDuaInfos(dua.dua_infos);
   const lines = formatDuaLines(dua.dua_lines!);
 
+    const collectionsRaw = (dua.collection_has_duas ?? [])
+      .map((chd: any) => chd.collections)
+      .filter(Boolean);
+
+    const seen = new Set<string>();
+    const collectionsView = collectionsRaw.filter((c: any) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    }).map((c: any) => {
+      const tTitle: Record<string, string | null> = {};
+      const tDesc: Record<string, string | null> = {};
+      const tSeo: Record<string, string | null> = {};
+      (c.collection_translations ?? []).forEach((tr: any) => {
+        tTitle[tr.language_code] = tr.title ?? null;
+        tDesc[tr.language_code] = tr.description ?? null;
+        tSeo[tr.language_code] = tr.seo_description ?? null;
+      });
+      return {
+        id: c.id,
+        slug: c.slug,
+        image_url: c.image_url,
+        title: tTitle,
+        description: tDesc,
+        seo_description: tSeo,
+      };
+    });
+
   const formattedDua: DuaView = {
     slug: dua.slug,
     image_url: dua.background_image_high_quality_url,
@@ -103,6 +140,7 @@ export async function getDua(
     languages: languageCodes,
     recitations: dua.dua_recitations!,
     lines,
+    collections: collectionsView,
   };
 
   return createResponse(200, { "data": formattedDua });

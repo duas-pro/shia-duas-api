@@ -26,6 +26,7 @@ Deno.serve((req: Request) => {
 
     // Filter options
     const types = urlObj.searchParams.get("types")?.split(",").filter(n => n && n.trim() !== "").map((dt) => dt.toLowerCase()) ?? [];
+    const collections = urlObj.searchParams.get("collections")?.split(",").filter(n => n && n.trim() !== "") ?? [];
     const tags = urlObj.searchParams.get("tags")?.split(",").filter(n => n && n.trim() !== "") ?? [];
     const narrators = urlObj.searchParams.get("narrators")?.split(",").filter(n => n && n.trim() !== "") ?? [];
     const reciters = urlObj.searchParams.get("reciters")?.split(",").filter(n => n && n.trim() !== "") ?? [];
@@ -54,8 +55,7 @@ Deno.serve((req: Request) => {
         reciters,
         book,
         hasAudio,
-        minWordCount,
-        maxWordCount
+        collections,
       );
     }
     return getDua(supabaseClient, routeName, languageCodes);
