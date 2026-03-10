@@ -35,11 +35,12 @@ export async function getDua(
             dua_lines (
                 line_number,
                 type,
-                begin_of_section,
                 repetitions_number,
+                begin_of_section,
                 dua_line_texts (
                     text,
-                    language_code
+                    language_code,
+                    section_title
                 )
             ),
             dua_recitations (

@@ -9,6 +9,7 @@ export interface DuaLine {
 export interface DuaLineText {
   text: string;
   language_code: string;
+  section_title: string;
 }
 
 export interface DuaInfo {

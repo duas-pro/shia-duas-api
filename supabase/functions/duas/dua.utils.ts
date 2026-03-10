@@ -44,6 +44,10 @@ export function formatDuaLines(duaLines: DuaLine[]): { [key: string]: string | n
 
         duaLine.dua_line_texts.forEach(duaLineText => {
             newLine[duaLineText.language_code] = duaLineText.text;
+            
+            if (duaLineText.section_title) {
+                newLine[`section_title_${duaLineText.language_code}`] = duaLineText.section_title;
+            }
         });
 
         lines.push(newLine);
