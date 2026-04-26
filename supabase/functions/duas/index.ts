@@ -34,6 +34,7 @@ Deno.serve((req: Request) => {
     const hasAudio = urlObj.searchParams.get("has_audio");
     const minWordCount = urlObj.searchParams.get("min_word_count");
     const maxWordCount = urlObj.searchParams.get("max_word_count");
+    const searchKeyword = urlObj.searchParams.get("search-word")?.trim() || null;
     
     const taskPattern = new URLPattern({ pathname: "/duas/:id" });
     const matchingPath = taskPattern.exec(url);
@@ -57,6 +58,7 @@ Deno.serve((req: Request) => {
         book,
         hasAudio,
         collections,
+        searchKeyword,
       );
     }
     return getDua(supabaseClient, routeName, languageCodes);

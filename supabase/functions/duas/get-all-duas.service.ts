@@ -16,6 +16,7 @@ export async function getDuas(
   book: string | null,
   hasAudio: string | null,
   collections: string[],
+  searchKeyword: string | null,
 ): Promise<Response> {
   const errorResponse = await validateLanguageCodes(languageCodes);
   if (errorResponse) return errorResponse;
@@ -184,6 +185,30 @@ export async function getDuas(
   
   if (hasAudio === "true") query = query.not("dua_recitations", "is", null);
   else if (hasAudio === "false") query = query.is("dua_recitations", null);
+
+  if (searchKeyword) {
+    const { data: matchingInfos, error: searchErr } = await supabaseClient
+      .rpc("search_dua_ids_by_title", {
+        p_search: searchKeyword,
+        p_language_codes: languageCodes,
+      });
+
+    if (searchErr) {
+      console.error("Error searching dua titles:", JSON.stringify(searchErr));
+      return createResponse(500, { error: "Internal Server Error" });
+    }
+
+    const matchingDuaIds = (matchingInfos ?? []).map((r: { dua_id: number }) => r.dua_id);
+
+    if (matchingDuaIds.length === 0) {
+      return createResponse(200, {
+        data: [],
+        pagination: { page, pageSize, totalPages: 0, totalCount: 0 },
+      });
+    }
+
+    query = query.in("id", matchingDuaIds);
+  }
 
   // TODO: This cannot work because only the word_count of one language should only be considered.
   // if (minWordCount) {
