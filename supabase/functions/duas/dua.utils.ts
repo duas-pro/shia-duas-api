@@ -1,6 +1,6 @@
-import { DuaInfo, DuaLine } from "./duas.model.ts";
+import { DuaInfo, DuaLine, DuaLineView } from "./duas.model.ts";
 
-export function formatDuaInfos(duaInfos: DuaInfo[]): { 
+export function formatDuaInfos(duaInfos: DuaInfo[]): {
     title: { [key: string]: string },
     description: { [key: string]: string },
     seoDescription: { [key: string]: string },
@@ -18,40 +18,25 @@ export function formatDuaInfos(duaInfos: DuaInfo[]): {
         seoDescription[languageCode] = duaInfo.seo_description;
         wordCount[languageCode] = duaInfo.word_count;
     });
-        
+
     return { title, description, seoDescription, wordCount };
 }
 
-export function formatDuaLines(duaLines: DuaLine[]): { [key: string]: string | number | boolean | null }[] {
-    const lines: {
-        [key: string]: string | number | boolean | null
-    }[] = [];
+export function formatDuaLines(duaLines: DuaLine[]): DuaLineView[] {
+    return duaLines.map(duaLine => {
+        const line: DuaLineView = {
+            line_number: duaLine.line_number,
+            translations: duaLine.dua_line_texts.map(t => ({
+                text: t.text,
+                language: t.language_code,
+                section_title: t.section_title ?? null,
+            })),
+        };
 
-    duaLines.forEach(duaLine => {
-        const newLine: {
-            [key: string]: string | number | boolean | null
-        } = {}
-        
-        if (duaLine.repetitions_number) {
-            newLine["repetitions_number"] = duaLine.repetitions_number;
-        }
-        if (duaLine.begin_of_section) {
-            newLine["begin_of_section"] = duaLine.begin_of_section;
-        }
-        if (duaLine.type !== "SUPPLICATION") {
-            newLine["type"] = duaLine.type;
-        }
+        if (duaLine.begin_of_section) line.begin_of_section = true;
+        if (duaLine.type !== "SUPPLICATION") line.type = duaLine.type;
+        if (duaLine.repetitions_number) line.repetitions_number = duaLine.repetitions_number;
 
-        duaLine.dua_line_texts.forEach(duaLineText => {
-            newLine[duaLineText.language_code] = duaLineText.text;
-            
-            if (duaLineText.section_title) {
-                newLine[`section_title_${duaLineText.language_code}`] = duaLineText.section_title;
-            }
-        });
-
-        lines.push(newLine);
+        return line;
     });
-
-    return lines;
 }

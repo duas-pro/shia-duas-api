@@ -1,4 +1,5 @@
 export interface DuaLine {
+  id: number;
   line_number: number;
   type: string;
   begin_of_section: boolean;
@@ -7,9 +8,24 @@ export interface DuaLine {
 }
 
 export interface DuaLineText {
+  id: number;
   text: string;
   language_code: string;
-  section_title: string;
+  section_title: string | null;
+}
+
+export interface DuaLineTranslation {
+  text: string;
+  language: string;
+  section_title: string | null;
+}
+
+export interface DuaLineView {
+  line_number: number;
+  begin_of_section?: boolean;
+  type?: string;
+  repetitions_number?: number;
+  translations: DuaLineTranslation[];
 }
 
 export interface DuaInfo {
@@ -37,6 +53,15 @@ export interface DuaRecitation {
   api_calls: number;
 }
 
+export interface DuaCollection {
+  id: number;
+  slug: string;
+  image_url: string;
+  title: { [key: string]: string };
+  description: { [key: string]: string };
+  seo_description: { [key: string]: string };
+}
+
 export interface Dua {
   slug: string;
   background_image_low_quality_url: string;
@@ -62,8 +87,9 @@ export interface DuaView {
   narrator: string;
   book: string;
   tags: string[];
-  lines: { [key: string]: string | number | boolean | null }[];
+  lines: DuaLineView[];
   recitations: DuaRecitation[];
+  collections: DuaCollection[];
 }
 
 export interface DuaItemView {
