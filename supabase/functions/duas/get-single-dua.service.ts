@@ -23,7 +23,6 @@ export async function getDua(
             background_image_high_quality_url,
             narrator,
             book,
-            api_calls,
             tags,
             dua_infos (
                 title,
@@ -88,14 +87,13 @@ export async function getDua(
   }
 
   const dua = duas[0] as unknown as Dua;
-
-  const newApiCallsCount = dua.api_calls + 1;
-  const { error: increaseError } = await supabaseAdmin.from("duas").update({
-    "api_calls": newApiCallsCount,
-  }).eq("slug", routeName);
-  if (increaseError) {
-    console.error("Error while increasing api_calls to " + newApiCallsCount + " for " + routeName + ": " + JSON.stringify(increaseError));
-  }
+  
+  // Fire-and-forget: atomic increment so it doesn't block the response
+  supabaseAdmin.rpc("increment_dua_api_calls", { p_slug: routeName }).then(({ error: increaseError }) => {
+    if (increaseError) {
+      console.error("Error while increasing api_calls for " + routeName + ": " + JSON.stringify(increaseError));
+    }
+  });
 
   const { title, description, seoDescription, wordCount } = formatDuaInfos(dua.dua_infos);
   const lines = formatDuaLines(dua.dua_lines!);
