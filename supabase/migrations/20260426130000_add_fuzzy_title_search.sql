@@ -1,8 +1,8 @@
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA extensions;
 
 -- GIN trigram index enables fast fuzzy/ilike searches on dua_infos.title
 CREATE INDEX IF NOT EXISTS idx_dua_infos_title_trgm
-  ON public.dua_infos USING gin(title gin_trgm_ops);
+  ON public.dua_infos USING gin(title extensions.gin_trgm_ops);
 
 -- Returns distinct dua_ids whose title fuzzy-matches the search term in the given languages.
 -- Uses word_similarity so partial-word typos ("Allegianca", "Alegiance") still match.
