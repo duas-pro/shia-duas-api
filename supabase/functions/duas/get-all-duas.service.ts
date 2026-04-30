@@ -45,6 +45,7 @@ export async function getDuas(
     ),
     collection_has_duas!left (
       collection_id,
+      position,
       collections (
         id,
         slug,
@@ -219,40 +220,54 @@ export async function getDuas(
   // }
 
   // Sort
-  let orderBy: { column: string; referencedTable: string; ascending: boolean } =
-    { column: "page_views", referencedTable: "", ascending: false };
+  let orderBy: { column: string; referencedTable?: string; ascending: boolean } =
+    { column: "page_views", ascending: false };
+
   if (sort === "name_asc") {
-    orderBy = {
-      column: "title",
-      referencedTable: "dua_infos",
-      ascending: true,
-    };
+    orderBy = { column: "title", referencedTable: "dua_infos", ascending: true };
   } else if (sort === "name_desc") {
-    orderBy = {
-      column: "title",
-      referencedTable: "dua_infos",
-      ascending: false,
-    };
+    orderBy = { column: "title", referencedTable: "dua_infos", ascending: false };
   } else if (sort === "popularity_asc") {
-    orderBy = { column: "page_views", referencedTable: "", ascending: true };
+    orderBy = { column: "page_views", ascending: true };
   } else if (sort === "popularity_desc") {
-    orderBy = { column: "page_views", referencedTable: "", ascending: false };
+    orderBy = { column: "page_views", ascending: false };
   }
 
-  const { data: duas, error, count } = await query
-    .range(from, to)
-    .order(orderBy.column, {
-      referencedTable: orderBy.referencedTable,
-      ascending: orderBy.ascending,
-    });
+  // collection_has_duas is one-to-many so PostgREST cannot sort duas by its
+  // position column. Fetch all matching rows without range, sort by position
+  // in JS, then paginate manually, see: https://github.com/supabase/supabase-js/issues/971
+  let duas: any[];
+  let totalCount: number;
 
-  if (error) {
-    console.error("Error fetching duas:", JSON.stringify(error));
-    return createResponse(500, { error: `Internal Server Error` });
+  if (hasCollectionFilter) {
+    const { data, error, count } = await query;
+    if (error) {
+      console.error("Error fetching duas:", JSON.stringify(error));
+      return createResponse(500, { error: "Internal Server Error" });
+    }
+    const sorted = (data ?? []).sort((a: any, b: any) =>
+      (a.collection_has_duas?.[0]?.position ?? 999999) -
+      (b.collection_has_duas?.[0]?.position ?? 999999)
+    );
+    totalCount = count ?? sorted.length;
+    duas = sorted.slice(from, to + 1);
+  } else {
+    const { data, error, count } = await query
+      .range(from, to)
+      .order(orderBy.column, {
+        referencedTable: orderBy.referencedTable,
+        ascending: orderBy.ascending,
+      });
+    if (error) {
+      console.error("Error fetching duas:", JSON.stringify(error));
+      return createResponse(500, { error: "Internal Server Error" });
+    }
+    duas = data ?? [];
+    totalCount = count ?? 0;
   }
 
   // --- Mapping: dua_infos + collections(collection_translations) ins gewünschte Schema ---
-  const formatted = (duas ?? []).map((dua: any) => {
+  const formatted = duas.map((dua: any) => {
     const { title, description, wordCount } = formatDuaInfos(dua.dua_infos);
     const languages = Object.keys(title);
 
@@ -307,10 +322,10 @@ export async function getDuas(
     } as DuaItemView;
   });
 
-  const totalPages = Math.ceil((count || 0) / pageSize);
+  const totalPages = Math.ceil((totalCount || 0) / pageSize);
 
   return createResponse(200, {
     data: formatted,
-    pagination: { page, pageSize, totalPages, totalCount: count },
+    pagination: { page, pageSize, totalPages, totalCount },
   });
 }
