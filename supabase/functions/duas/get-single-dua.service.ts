@@ -57,6 +57,7 @@ export async function getDua(
       id,
       slug,
       image_url,
+      type,
       collection_translations ( language_code, title, description, seo_description )
     )
   )
@@ -120,6 +121,7 @@ export async function getDua(
         id: c.id,
         slug: c.slug,
         image_url: c.image_url,
+        type: c.type,
         title: tTitle,
         description: tDesc,
         seo_description: tSeo,
